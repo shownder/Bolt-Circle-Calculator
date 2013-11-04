@@ -452,8 +452,8 @@ function scene:createScene( event )
   screenGroup:insert(trigGroup)
 
   if storeSettings.speedPaid then
-    sineButt.alpha = 0.50
-    sineButt:setEnabled(false)
+    speedButt.alpha = 0.50
+    speedButt:setEnabled(false)
   end
 
   if storeSettings.trigPaid then
