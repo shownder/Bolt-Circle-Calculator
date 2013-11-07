@@ -14,8 +14,11 @@ local physicalH = math.round( (display.contentHeight - display.screenOriginY*2) 
 --Require
 local storyboard = require( "storyboard" )
 local loadsave = require("loadsave")
-
+local device = require("device")
 local licensing = require( "licensing" )
+
+if not device.isApple then
+
 licensing.init( "google" )
 
 local function alertListener ( event )
@@ -33,11 +36,12 @@ local function licensingListener( event )
    local verified = event.isVerified
    if not event.isVerified then
       --failed verify app from the play store, we print a message
-      native.showAlert ( "Not Authorized", "Cannot authorize from Google Play.", { "Close" }, alertListener)
+      native.showAlert ( "Not Authorized", "The app was not purchased from Google Play.", { "Close" }, alertListener)
    end
 end
 
 licensing.verify( licensingListener )
+end
 
 local timesOpen = loadsave.loadTable("timesOpen.json")
 --timesOpen.opened = 0
@@ -53,5 +57,10 @@ local timesOpen = loadsave.loadTable("timesOpen.json")
       loadsave.saveTable(timesOpen, "timesOpen.json")
     end
   end
-  
+ 
+
 storyboard.gotoScene( "menu", "fade", 800 )
+
+
+
+
