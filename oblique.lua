@@ -452,6 +452,7 @@ function scene:createScene( event )
 	{
 		id = "measureButt",
     width = 125,
+    height = 52,
 		label = "TO METRIC",
 		labelColor = { default = {39, 102, 186, 200}, over = {255, 255, 255}},
 		font = "BerlinSansFB-Reg",
@@ -468,6 +469,7 @@ function scene:createScene( event )
 	{
 		id = "menuButt",
     width = 125,
+    height = 52,
 		label = "MENU",
 		labelColor = { default = {39, 102, 186, 200}, over = {255, 255, 255}},
 		font = "BerlinSansFB-Reg",
@@ -484,6 +486,7 @@ function scene:createScene( event )
 	{
 		id = "resetButt",
     width = 125,
+    height = 52,
 		label = "RESET",
 		labelColor = { default = {39, 102, 186, 200}, over = {255, 255, 255}},
 		font = "BerlinSansFB-Reg",
