@@ -1,30 +1,45 @@
-local storyboard = require( "storyboard" )
-local scene = storyboard.newScene()
+local composer = require( "composer" )
+local scene = composer.newScene()
 local widget = require ( "widget" )
 local store = require ("store")
 local loadsave = require ("loadsave")
+local myData = require("myData")
+local device = require("device")
 
-local back
+---------------------------------------------------------------------------------
+-- All code outside of the listener functions will only be executed ONCE
+-- unless "composer.removeScene()" is called.
+---------------------------------------------------------------------------------
 
-local storeSettings, restoring
-local sineButt, speedButt, boltButt, trigButt, restoreButt, backButt
-local sineBuy, speedBuy, boltBuy, trigBuy
-local sineText, speedText, boltText, trigText
-local sineDesc, speedDesc, boltDesc
-local backEdgeX, backEdgeY, optionsBack
-local sineGroup, speedGroup, boltGroup, trigGroup
-local whichOne, sineSold, speedSold, boltSold
+-- local forward references should go here
+
+local back, example, descBack, desc, descTitle, descScroll, buttBack, buyBut, backBut, butGroup, descGroup, price
+local goBack2, butMove, goBack
+local backEdgeX, backEdgeY
+local showing
+
+---------------------------------------------------------------------------------
 
 local function onKeyEvent( event )
 
-   local phase = event.phase
-   local keyName = event.keyName
+  local phase = event.phase
+  local keyName = event.keyName
    
-   if ( "back" == keyName and phase == "up" ) then
-       
-       timer.performWithDelay(100,goBack2,1)
-   end
-   return true
+  if ( "back" == keyName and phase == "up" ) then
+    timer.performWithDelay(100,goBack2,1)
+  end
+  return true
+end
+
+local function onComplete( event )
+    if "clicked" == event.action then
+        local i = event.index
+        if 1 == i then
+          transition.to( butGroup, {time = 500, y = display.contentHeight + 5})
+          transition.to( descGroup, {time = 500, x = display.contentWidth + 5})
+          timer.performWithDelay(400, goBack)
+        end
+    end
 end
 
 local function transactionCallback( event )
@@ -33,56 +48,42 @@ local function transactionCallback( event )
    local transaction = event.transaction
    local tstate = event.transaction.state
    local product = event.transaction.productIdentifier
+   local showing = myData.showing
 
    if tstate == "purchased" then
+     if not device.isApple then
+      storeSettings.buyCount = 1
+     end
       print("Transaction succuessful!")
-      if whichOne[1] == product then
-        storeSettings.trigPaid = true
-        trigButt.alpha = 0.50
-        trigButt:setEnabled(false)
-        trigBuy.alpha = 0
-      elseif whichOne[2] == product then
-        storeSettings.speedPaid = true
-        speedButt.alpha = 0.50
-        speedButt:setEnabled(false)
-        speedBuy.alpha = 0
-      elseif whichOne[3] == product then
+      if "com.bolt.iap.sine" == product then
         storeSettings.sinePaid = true
-        sineButt.alpha = 0.50
-        sineButt:setEnabled(false)
-        sineBuy.alpha = 0
+      elseif "com.bolt.iap.speed" == product then
+        storeSettings.speedPaid = true
+      elseif "com.bolt.iap.trig" == product then
+        storeSettings.trigPaid = true
       end
       loadsave.saveTable(storeSettings, "store.json")
-      --native.showAlert("Success", "Function is now unlocked!", {"Okay"})
+      native.showAlert("Success", "Function is now unlocked!", {"Okay"}, onComplete)
       store.finishTransaction( transaction )
    elseif  tstate == "restored" then
       print("Transaction restored (from previous session)")
-      if whichOne[1] == product then
-        storeSettings.trigPaid = true
-        trigButt.alpha = 0.50
-        trigButt:setEnabled(false)
-        trigBuy.alpha = 0
-      elseif whichOne[2] == product then
-        storeSettings.speedPaid = true
-        speedButt.alpha = 0.50
-        speedButt:setEnabled(false)
-        speedBuy.alpha = 0
-      elseif whichOne[3] == product then
+      if "com.bolt.iap.sine" == product then
         storeSettings.sinePaid = true
-        sineButt.alpha = 0.50
-        sineButt:setEnabled(false)
-        sineBuy.alpha = 0
+      elseif "com.bolt.iap.speed" == product then
+        storeSettings.speedPaid = true
+      elseif "com.bolt.iap.trig" == product then
+        storeSettings.trigPaid = true
       end
       loadsave.saveTable(storeSettings, "store.json")
       store.finishTransaction( transaction )
    elseif tstate == "refunded" then
       print("User requested a refund -- locking app back")
-      if whichOne[1] == product then
-        storeSettings.trigPaid = false
-      elseif whichOne[2] == product then
-        storeSettings.speedPaid = false
-      elseif whichOne[3] == product then
+      if "com.bolt.iap.sine" == product then
         storeSettings.sinePaid = false
+      elseif "com.bolt.iap.speed" == product then
+        storeSettings.speedPaid = false
+      elseif "com.bolt.iap.trig" == product then
+        storeSettings.trigPaid = false
       end
       loadsave.saveTable(storeSettings, "store.json")
       native.showAlert("Refund", "Purchase was refunded.", {"Okay"})
@@ -92,7 +93,7 @@ local function transactionCallback( event )
       store.finishTransaction( transaction )
    elseif tstate == "failed" then
       print("Transaction failed, type:", transaction.errorType, transaction.errorString)
-      --native.showAlert("Failed", transaction.errorType.." - "..transaction.errorString, {"Okay"})
+      native.showAlert("Failed", transaction.errorType.." - "..transaction.errorString, {"Okay"})
       store.finishTransaction( transaction )
    else
       print("unknown event")
@@ -102,97 +103,57 @@ local function transactionCallback( event )
    print("done with store business for now")
 end
 
-local function goBack( event )
-  if event.phase == "ended" then
-    
-    storyboard.gotoScene( "menu", { effect="slideRight", time=800})
-    
-  end
-end
-
 local function purchase( event )
   if event.phase == "ended" then
+    local showing = myData.showing
     
-    if event.target.num == 1 then
-      print("Purchase Trig")
-      store.purchase({"com.bolt.iap.trig"})
+    if showing == "sine" then
+      print("Purchase Sine")
+      store.purchase({"com.bolt.iap.sine"})
       --store.purchase({"android.test.purchased"})
-    elseif event.target.num == 2 then
+    elseif showing == "speed" then
       print("Purchase Speed")
       store.purchase({"com.bolt.iap.speed"})
       --store.purchase({"android.test.canceled"})
-    elseif event.target.num == 3 then
+    elseif showing == "trig" then
       print("Purchase Bolt")
-      store.purchase({"com.bolt.iap.sine"})
+      store.purchase({"com.bolt.iap.trig"})
       --store.purchase({"android.test.item_unavailable"})
-    end
-    
+    end 
   end
 end
 
-local function restorePurchases( event )
-  if event.phase == "ended" then
-    
-    print("Restore all purchases")
-    store.restore()    
-    
+goBack = function()
+  
+  composer.gotoScene( "menu", { effect="fromBottom", time=800})
+  
+end
+
+goBack2 = function(event)
+  local phase = event.phase
+  
+  if "ended" == phase then
+    transition.to( butGroup, {time = 500, y = display.contentHeight + 5})
+    transition.to( descGroup, {time = 500, x = display.contentWidth + 5})
+    timer.performWithDelay(400, goBack)
   end
+  
 end
 
-local function descSelect ( event )
-  local phase = event.phase 
-   if "ended" == phase then
+butMove = function()
 
-    if event.target.num == 1 then
-        trigGroup.alpha = 1
-        speedGroup.alpha = 0
-        sineGroup.alpha = 0
-
-        trigButt.alpha = 0
-        trigBuy.alpha = 1
-        if not storeSettings.speedPaid then 
-          speedButt.alpha = 1
-        end
-        if not storeSettings.sinePaid then
-          sineButt.alpha = 1
-        end
-    elseif event.target.num == 2 then
-        speedGroup.alpha = 1
-        trigGroup.alpha = 0
-        sineGroup.alpha = 0
-
-        speedButt.alpha = 0
-        speedBuy.alpha = 1
-        if not storeSettings.trigPaid then 
-          trigButt.alpha = 1
-        end
-        if not storeSettings.sinePaid then
-          sineButt.alpha = 1
-        end
-    elseif event.target.num == 3 then
-        sineGroup.alpha = 1
-        trigGroup.alpha = 0
-        speedGroup.alpha = 0
-        
-        sineButt.alpha = 0
-        sineBuy.alpha = 1
-        if not storeSettings.trigPaid then 
-          trigButt.alpha = 1
-        end
-        if not storeSettings.speedPaid then
-          speedButt.alpha = 1
-        end
-    end
-
-   end
+  transition.to( butGroup, {time = 500, y = 0})
+  transition.to( descGroup, {time = 500, x = 0})
 end
 
 
-function scene:createScene( event )
-	local screenGroup = self.view
+-- "scene:create()"
+function scene:create( event )
 
-	Runtime:addEventListener( "key", onKeyEvent )
-
+  local sceneGroup = self.view
+   
+  Runtime:addEventListener( "key", onKeyEvent )
+  
   storeSettings = loadsave.loadTable("store.json")
   if store.availableStores.apple then
       timer.performWithDelay(1000, function() store.init( "apple", transactionCallback); end)
@@ -200,313 +161,209 @@ function scene:createScene( event )
   if store.availableStores.google then
       timer.performWithDelay( 1000, function() store.init( "google", transactionCallback ); end)
   end
-
-  whichOne = {}
-  whichOne[1] = "com.bolt.iap.trig"
-  --whichOne[1] = "android.test.purchased"
-  whichOne[2] = "com.bolt.iap.speed"
-  --whichOne[2] = "android.test.canceled"
-  whichOne[3] = "com.bolt.iap.sine"
-  --whichOne[3] = "android.test.item_unavailable"
-
-  sineGroup = display.newGroup ( )
-  speedGroup = display.newGroup ( )
-  boltGroup = display.newGroup ( )
-  trigGroup = display.newGroup ( )
-
-	back = 	display.newImageRect( screenGroup, "backgrounds/background.png", 570, 360 )
-	back.x = display.contentCenterX
+  
+  descGroup = display.newGroup()
+  butGroup = display.newGroup()
+   
+  back = display.newImageRect( sceneGroup, "backgrounds/background.png", 570, 360 )
+  back.x = display.contentCenterX
 	back.y = display.contentCenterY
   backEdgeX = back.contentBounds.xMin
 	backEdgeY = back.contentBounds.yMin
-
-  optionsBack = display.newRect(screenGroup, 0, 0, display.contentWidth/3, 365)
-  optionsBack:setFillColor(255, 255, 255)
-  optionsBack:setReferencePoint(display.TopRightReferencePoint)
-  optionsBack.x = display.actualContentHeight
-  optionsBack.y = 0
-
-  local options = {text="", x=0, y=0, width=300, align="left", font="BerlinSansFB-Reg", fontSize=16}
-
-  title = display.newText( screenGroup, "Function Store", 0, 5, 150, 100, "BerlinSansFB-Reg", 28 )
-  title:setTextColor(35, 87, 157)
-  --title:setEmbossColor({highlight = {r=0, g=0, b=0, a=200}, shadow = {r=0,g=0,b=0, a=0}})
-  title.x = display.actualContentHeight-60
-
-  sineButt = widget.newButton
-  {
-    id = "sineButt",
-    width = 125,
-    label = "Sine Bar",
-    labelColor = { default = {255, 255, 255}, over = {39, 102, 186, 200}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 20,
-    defaultFile = "Images/buttonOver.png",
-    overFile = "Images/button.png",
-    onRelease = descSelect,    
-    }
-  sineButt.num = 3
-  screenGroup:insert(sineButt)
-  sineButt.x = display.actualContentHeight-85
-  sineButt.y = 230
-
-  sineBuy = widget.newButton
-  {
-    id = "sineBuy",
-    width = 125,
-    label = "Buy",
-    labelColor = { default = {255, 255, 255}, over = {19, 124, 21}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 16,
-    defaultFile = "Images/buyOver.png",
-    overFile = "Images/buy.png",
-    onRelease = purchase,    
-    }
-  sineBuy.num = 3
-  sineGroup:insert(sineBuy)
-  sineBuy.x = display.actualContentHeight-85
-  sineBuy.y = 230
-  sineBuy.alpha = 0
-
-  speedButt = widget.newButton
-  {
-    id = "speedButt",
-    width = 125,
-    label = "Speeds & Feeds",
-    labelColor = { default = {255, 255, 255}, over = {39, 102, 186, 200}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 16,
-    defaultFile = "Images/buttonOver.png",
-    overFile = "Images/button.png",
-    onRelease = descSelect,    
-    }
-  speedButt.num = 2
-  screenGroup:insert(speedButt)
-  speedButt.x = display.actualContentHeight-85
-  speedButt.y = 170
-
-  speedBuy = widget.newButton
-  {
-    id = "speedBuy",
-    width = 125,
-    label = "Buy",
-    labelColor = { default = {255, 255, 255}, over = {19, 124, 21}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 16,
-    defaultFile = "Images/buyOver.png",
-    overFile = "Images/buy.png",
-    onRelease = purchase,    
-    }
-  speedBuy.num = 2
-  speedGroup:insert(speedBuy)
-  speedBuy.x = display.actualContentHeight-85
-  speedBuy.y = 170
-  speedBuy.alpha = 0
-
-  -- boltButt = widget.newButton
-  -- {
-  --   id = "boltButt",
-  --   width = 125,
-  --   label = "Bolt Circle",
-  --   labelColor = { default = {255, 255, 255}, over = {39, 102, 186, 200}},
-  --   font = "BerlinSansFB-Reg",
-  --   fontSize = 20,
-  --   defaultFile = "Images/buttonOver.png",
-  --   overFile = "Images/button.png",
-  --   onRelease = descSelect,    
-  --   }
-  -- boltButt.num = 3
-  -- screenGroup:insert(boltButt)
-  -- boltButt.x = display.actualContentHeight-85
-  -- boltButt.y = 230
-
-  -- boltBuy = widget.newButton
-  -- {
-  --   id = "boltBuy",
-  --   width = 125,
-  --   label = "Buy",
-  --   labelColor = { default = {255, 255, 255}, over = {19, 124, 21}},
-  --   font = "BerlinSansFB-Reg",
-  --   fontSize = 16,
-  --   defaultFile = "Images/buyOver.png",
-  --   overFile = "Images/buy.png",
-  --   onRelease = purchase,    
-  --   }
-  -- boltBuy.num = 3
-  -- boltGroup:insert(boltBuy)
-  -- boltBuy.x = display.actualContentHeight-85
-  -- boltBuy.y = 230
-  -- boltBuy.alpha = 0
-
-  trigButt = widget.newButton
-  {
-    id = "trigButt",
-    width = 125,
-    label = "Trigonometry",
-    labelColor = { default = {255, 255, 255}, over = {39, 102, 186, 200}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 16,
-    defaultFile = "Images/buttonOver.png",
-    overFile = "Images/button.png",
-    onRelease = descSelect,    
-    }
-  trigButt.num = 1
-  screenGroup:insert(trigButt)
-  trigButt.x = display.actualContentHeight-85
-  trigButt.y = 110
-
-  trigBuy = widget.newButton
-  {
-    id = "trigBuy",
-    width = 125,
-    label = "Buy",
-    labelColor = { default = {255, 255, 255}, over = {19, 124, 21}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 16,
-    defaultFile = "Images/buyOver.png",
-    overFile = "Images/buy.png",
-    onRelease = purchase,    
-    }
-  trigBuy.num = 1
-  trigGroup:insert(trigBuy)
-  trigBuy.x = display.actualContentHeight-85
-  trigBuy.y = 110
-  trigBuy.alpha = 0
-
-  restoreButt = widget.newButton
-  {
-    id = "restoreButt",
-    width = 125,
-    label = "Restore",
-    labelColor = { default = {255,255,255}, over = {198,68,68}},
-    font = "BerlinSansFB-Reg",
-    fontSize = 20,
-    defaultFile = "Images/restoreButtOver.png",
-    overFile = "Images/restoreButt.png",
-    onRelease = restorePurchases,    
-    }
-  restoreButt.num = 1
-  restoreButt.pressed = false
-  screenGroup:insert(restoreButt)
-  restoreButt.x = display.actualContentHeight-85
-  restoreButt.y = 290
-
-  backButt = display.newImageRect(screenGroup, "Images/backButt.png", 54, 22)
-  backButt:setReferencePoint(display.TopLeftReferencePoint)
-  backButt:addEventListener("touch", goBack)
-  backButt.isHitTestable = true
-  backButt.x = 10
-  backButt.y = 10
-
-  sineDesc = display.newImageRect( sineGroup, "backgrounds/sineDesc.png", 285, 180 )
-  sineDesc.x = 200
-  sineDesc.y = 115
-
-  sineText = display.newText( options )
-  sineGroup:insert(sineText)
-  sineText.text = "Quickly and accurately calculate precision block stack or angle for use with sine bars or sine plates. $0.99 USD"
-  sineText.x = 200
-  sineText.y = 230
-
-  sineGroup.alpha = 0
-
-  speedDesc = display.newImageRect( speedGroup, "backgrounds/speedDesc.png", 285, 180 )
-  speedDesc.x = 200
-  speedDesc.y = 110
-
-  speedText = display.newText( options )
-  speedGroup:insert(speedText)
-  speedText.text = "Calculate cutting speeds & feeds for drills, milling cutters, and lathe workpieces. Calculate between RPM and feet or meters per minute, and between feed per rev and feed per minute. $0.99 USD"
-  speedText.x = 200
-  speedText.y = 245
-
-  speedGroup.alpha = 0
-
-  boltDesc = display.newImageRect( boltGroup, "backgrounds/boltDesc.png", 285, 180 )
-  boltDesc.x = 200
-  boltDesc.y = 115
-
-  boltText = display.newText( options )
-  boltGroup:insert(boltText)
-  boltText.text = "Calculate X-Y coordinates for equally spaced bolts. You can make the center of the circle any coordinate you need, and place the first hole at any angle. $0.99 USD"
-  boltText.x = 200
-  boltText.y = 245
-
-  boltGroup.alpha = 0
-
-  trigDesc = display.newImageRect( trigGroup, "backgrounds/trig.png", 285, 180 )
-  trigDesc.x = 200
-  trigDesc.y = 115
-
-  trigText = display.newText( options )
-  trigGroup:insert(trigText)
-  trigText.text = "Solve Right Angle and Oblique Triangle problems. Easily switch between inch and metric, and convert between degrees-decimal and degrees, minutes and seconds. $0.99 USD"
-  trigText.x = 200
-  trigText.y = 245
-
-  trigGroup.alpha = 0
-
-  screenGroup:insert(sineGroup)
-  screenGroup:insert(speedGroup)
-  screenGroup:insert(boltGroup)
-  screenGroup:insert(trigGroup)
-
-  if storeSettings.speedPaid then
-    speedButt.alpha = 0.50
-    speedButt:setEnabled(false)
-  end
-
-  if storeSettings.trigPaid then
-    trigButt.alpha = 0.50
-    trigButt:setEnabled(false)
-  end
-
-  if storeSettings.sinePaid then
-    sineButt.alpha = 0.50
-    sineButt:setEnabled(false)
-  end
-
-  if not storeSettings.speedPaid and not storeSettings.trigPaid and not storeSettings.sinePaid then
-    restoreButt.alpha = 1
-  else
-    restoreButt.alpha = 0
-  end
-
-end
-
-function scene:enterScene( event )
-  local group = self.view
-        
-		storyboard.purgeScene( "menu" )
-
-end
-
-function scene:exitScene( event )
-  local group = self.view
-   
-  Runtime:removeEventListener( "key", onKeyEvent )
   
-	
-end
-
-scene:addEventListener( "createScene", scene )
-
-scene:addEventListener( "enterScene", scene )
-
-scene:addEventListener( "exitScene", scene )
-
-function goBack2()
-	
-  if (storyboard.isOverlay) then
-    storyboard.number = "Tap Me"
-    storyboard.hideOverlay()
-  else
-	storyboard.gotoScene( "menu", { effect="slideRight", time=800})
+  print(myData.showing)
+  
+  if myData.showing == "trig" then
+    example = display.newImageRect(sceneGroup, "backgrounds/trigDesc.png", 570, 360)
+  elseif myData.showing == "speed" then
+    example = display.newImageRect(sceneGroup, "backgrounds/speedDesc.png", 570, 360)
+  elseif myData.showing == "sine" then
+    example = display.newImageRect(sceneGroup, "backgrounds/sineDesc.png", 570, 360)
+  elseif myData.showing == "bolt" then
+    example = display.newImageRect(sceneGroup, "backgrounds/boltDesc.png", 570, 360)
   end
-		
+  
+  example.anchorX = 0
+  example.anchorY = 0
+  example.x, example.y = 0, 0
+  
+  descBack = display.newRect(descGroup, 0, 0, display.contentWidth / 2 - 50, display.contentHeight)
+  descBack.anchorX, descBack.anchorY = 1, 0
+  descBack.x, descBack.y = display.contentWidth, 0
+  descBack:setFillColor(1)
+  --descBack.alpha = 0
+  
+  descScroll = widget.newScrollView(
+    {
+      x = descBack.x,
+      y = 10,
+      width = display.contentWidth / 2 - 50,
+      height = display.contentHeight - 50,
+      scrollWidth = 0,
+      id = "answerScroll",
+      hideBackground = true,
+      horizontalScrollDisabled = true,
+      verticalScrollDisabled = false,
+    }
+    )
+  descGroup:insert(descScroll)
+  descScroll.anchorX, descScroll.anchorY = 1, 0
+  descScroll.x = descBack.x
+  --descScroll.y = descBack.y + 50
+  --descScroll.alpha = 0
+  
+  local options = {parent = descGroup, text="This is a test of the thing that I made ", x=0, y=0, width=descBack.contentWidth - 10, align="left", font="BerlinSansFB-Reg", fontSize=18}
+  local options2 = {parent = butGroup, text="This is a Title", x=0, y=0, font="BerlinSansFB-Reg", fontSize=22}
+  local options3 = {parent = butGroup, text="$0.99 USD", x=0, y=0, font="BerlinSansFB-Reg", fontSize=16}
+  
+  display.setDefault( "anchorX", 0 )
+  display.setDefault( "anchorY", 0 )
+  
+  desc = display.newText(options)
+  desc:setFillColor(0.15, 0.4, 0.729)
+  descScroll:insert(desc)
+  desc.x = 5
+  desc.y = 0
+  
+  descTitle = display.newText(options2)
+  descTitle.x = 10
+  descTitle.y = display.viewableContentHeight - 55
+  descTitle:setFillColor(1)
+  display.setDefault( "anchorX", 0.5 )
+  display.setDefault( "anchorY", 0.5 )
+  
+  if myData.showing == "trig" then
+    desc.text = "Solve Right Angle Triangle and Oblique Triangle problems easily and quickly with just a few taps. Quickly switch between inch and metric, and convert between degrees-decimal and degrees, minutes and seconds."
+    descTitle.text = "Trigonometry Functions"
+  elseif myData.showing == "speed" then
+    desc.text = "4 Functions Included! Calculate cutting speeds & feeds for drills, milling cutters, and lathe workpieces. Calculate between RPM and feet or meters per minute, and between feed per rev and feed per minute.\n \nAlso includes Counter Sink Depth & Drill Point calculator function, Drill Chart list, and Materials List with over 200 materials that can easily be used in both Speeds & Feeds and C'Sink & Drill Point Functions."
+    descTitle.text = "Speeds & Feeds"
+  elseif myData.showing == "sine" then
+    desc.text = "Quickly and accurately calculate precision block stack or angle for use with sine bars or sine plates.\nQuickly switch between inch and metric, and convert between degrees-decimal and degrees, minutes and seconds."
+    descTitle.text = "Sine Bar Function"
+  elseif myData.showing == "bolt" then    
+    desc.text = "Quickly calculate X and Y coordinates for points equally spaced around a circle.\n* Make center of circle any coordinate you require\n* Place first hole at any angle\n* Automatically add list of coordinates into email\n* Quickly switch between inch and metric, and convert between degrees-decimal and degrees, minutes and seconds."
+    descTitle.text = "Bolt Circle Calculator"
+  end
+  
+  backBut = widget.newButton(
+    {
+      id = "backBut",
+      width = 63,
+      height = 25,
+      label = "BACK",
+      labelColor = { default = {0.15, 0.4, 0.729}, over = {1}},
+      font = "BerlinSansFB-Reg",
+      fontSize = 18,
+      defaultFile = "Images/backBut.png",
+      overFile = "Images/backButOver.png",
+      onEvent = goBack2,
+		}
+    )
+	descGroup:insert(backBut)
+  backBut.anchorX = 0.5
+  backBut.anchorY = 1
+  backBut.y = display.viewableContentHeight - 10
+  backBut.x = display.viewableContentWidth - (desc.contentWidth / 4)
+  
+  buyBut = widget.newButton(
+    {
+      id = "backBut",
+      width = 63,
+      height = 25,
+      label = "BUY",
+      labelColor = { default = {0.076, 0.463, 0}, over = {1}},
+      font = "BerlinSansFB-Reg",
+      fontSize = 18,
+      defaultFile = "Images/buyBut.png",
+      overFile = "Images/buyButOver.png",
+      onEvent = purchase,
+		}
+    )
+	descGroup:insert(buyBut)
+  buyBut.anchorX = 0.5
+  buyBut.anchorY = 1
+  buyBut.y = display.viewableContentHeight - 10
+  buyBut.x = display.viewableContentWidth - ((desc.contentWidth / 4) * 3)
+  
+  price = display.newText(options3)
+  price.anchorX = 0
+  price.anchorY = 1
+  price.x = 10
+  price.y = display.viewableContentHeight - 10
+  
+  butGroup.anchorX = 0
+  butGroup.anchorY = 0
+  butGroup.x = 0
+  butGroup.y = display.contentHeight + 5
+  
+  descGroup.anchorX = 0
+  descGroup.anchorY = 0
+  descGroup.x = display.contentWidth + 5
+  descGroup.y = 0
+  
+  timer.performWithDelay(600, butMove)
+  timer.performWithDelay(600, butMove)
+   
+
+   -- Initialize the scene here.
+   -- Example: add display objects to "sceneGroup", add touch listeners, etc.
 end
 
+-- "scene:show()"
+function scene:show( event )
+
+   local sceneGroup = self.view
+   local phase = event.phase
+
+   if ( phase == "will" ) then
+      -- Called when the scene is still off screen (but is about to come on screen).
+   elseif ( phase == "did" ) then
+     composer.removeScene( "menu", true)
+      -- Called when the scene is now on screen.
+      -- Insert code here to make the scene come alive.
+      -- Example: start timers, begin animation, play audio, etc.
+   end
+end
+
+-- "scene:hide()"
+function scene:hide( event )
+
+   local sceneGroup = self.view
+   local phase = event.phase
+
+   if ( phase == "will" ) then
+     Runtime:removeEventListener( "key", onKeyEvent )
+      -- Called when the scene is on screen (but is about to go off screen).
+      -- Insert code here to "pause" the scene.
+      -- Example: stop timers, stop animation, stop audio, etc.
+   elseif ( phase == "did" ) then
+     
+      -- Called immediately after scene goes off screen.
+   end
+end
+
+-- "scene:destroy()"
+function scene:destroy( event )
+
+   local sceneGroup = self.view
+   
+   butGroup:removeSelf()
+   descGroup:removeSelf()
+
+   -- Called prior to the removal of scene's view ("sceneGroup").
+   -- Insert code here to clean up the scene.
+   -- Example: remove display objects, save state, etc.
+end
+
+---------------------------------------------------------------------------------
+
+-- Listener setup
+scene:addEventListener( "create", scene )
+scene:addEventListener( "show", scene )
+scene:addEventListener( "hide", scene )
+scene:addEventListener( "destroy", scene )
+
+---------------------------------------------------------------------------------
 
 return scene
-
-

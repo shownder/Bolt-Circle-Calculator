@@ -10,6 +10,7 @@ settings =
     {
 		plist =
       {
+        CFBundleDisplayName = "Bolt Circle Calculator",
         UIAppFonts = 
           {
             "Rock Salt.ttf",
