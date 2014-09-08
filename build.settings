@@ -1,5 +1,18 @@
 settings =
 {
+  plugins =
+  {
+    ["plugin.amazon.iap"] =
+      {
+          -- required
+          publisherId = "com.amazon",
+      },
+    ["CoronaProvider.analytics.flurry"] =
+      {
+          -- required
+          publisherId = "com.coronalabs",
+      },
+  },
 	orientation =
 	{
 		default = "landscapeRight",
@@ -10,7 +23,7 @@ settings =
     {
 		plist =
       {
-        CFBundleDisplayName = "Bolt Circle Calculator",
+        CFBundleDisplayName = "Bolt Circle Calc",
         UIAppFonts = 
           {
             "Rock Salt.ttf",

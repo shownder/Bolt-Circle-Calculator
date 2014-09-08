@@ -16,8 +16,11 @@ local loadsave = require("loadsave")
 local device = require("device")
 local licensing = require( "licensing" )
 local composer = require( "composer" )
+local analytics = require( "analytics" )
 
 if not device.isApple then
+
+  analytics.init( "2YBNRT7WPG6X7VF7XZDV" )
 
 licensing.init( "google" )
 
@@ -32,7 +35,6 @@ local function alertListener ( event )
 end
 
 local function licensingListener( event )
-
    local verified = event.isVerified
    if not event.isVerified then
       --failed verify app from the play store, we print a message
@@ -42,11 +44,21 @@ local function licensingListener( event )
    end
 end
 
+if device.isApple then
+  analytics.init( "MSHRNG36QRQM5WT97TQV" )
+end
+
 licensing.verify( licensingListener )
 end
 
 local timesOpen2 = loadsave.loadTable("timesOpen2.json")
 --timesOpen2.opened = 4
+
+if (menuOpened == nil) then
+    menuOpened = {}
+    menuOpened.opened = false
+    loadsave.saveTable(menuOpened, "menuOpen.json")
+end
   
   if (timesOpen2 == nil) then
     timesOpen2 = {}
@@ -64,7 +76,6 @@ print(system.getInfo("model") .. " " .. system.getInfo("platformVersion"))
 if device.isApple then
   composer.gotoScene( "menu")
 end
-
 
 
 
